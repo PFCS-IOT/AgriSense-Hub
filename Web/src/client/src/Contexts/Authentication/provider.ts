@@ -1,0 +1,104 @@
+import React, { createElement, useState, useEffect, useCallback } from 'react'
+import type { ReactNode } from 'react'
+import chalk from 'chalk'
+
+import type {
+	ServerUser as User,
+	ApiResponse,
+	LoginResponse,
+} from 'Shared/Data/Types/index.js'
+import { Auth } from 'Client/Config/Api.js'
+import AuthenticationContext from './context.js'
+
+/**
+ * Provider for the Authentication context.
+ *
+ * @param children - The child components that will have access to the SocketContext.
+ * @return The Authentication context provider component.
+ */
+const AuthenticationProvider: React.FC<{ children: ReactNode }> = ({
+	children,
+}) => {
+	const [user, setUser] = useState<User | null>(null)
+	const [isAuthenticated, setIsAuthenticated] = useState(false)
+	const [isLoading, setIsLoading] = useState(true)
+
+	/**
+	 * Fetch the current authenticated user from the server.
+	 */
+	const fetchUser = useCallback(async () => {
+		const token = localStorage.getItem('token')
+
+		// No token, user is not authenticated
+		if (!token) {
+			setUser(null)
+			setIsAuthenticated(false)
+			setIsLoading(false)
+			return
+		}
+
+		// Token exists, verify it with the server
+		try {
+			const response = (await Auth.me()).data
+			if (response.success && response.data) {
+				setUser(response.data.user)
+				setIsAuthenticated(true)
+			} else {
+				localStorage.removeItem('token')
+				setUser(null)
+				setIsAuthenticated(false)
+			}
+		} catch (error) {
+			console.error(`${chalk.red('Error fetching user data:')} ${error}`)
+			localStorage.removeItem('token')
+			setUser(null)
+			setIsAuthenticated(false)
+		} finally {
+			setIsLoading(false)
+		}
+	}, [])
+
+	useEffect(() => {
+		fetchUser()
+	}, [fetchUser])
+
+	/**
+	 * Logs in a user by setting the authentication token and user state.
+	 *
+	 * @param data - The login response data containing the token and user information.
+	 */
+	const login = ({ data }: LoginResponse) => {
+		if (data) {
+			localStorage.setItem('token', data.token)
+			setUser(data.user)
+			setIsAuthenticated(true)
+		}
+	}
+
+	/**
+	 * Logs out the current user.
+	 * Clears the authentication token and resets user state.
+	 */
+	const logout = () => {
+		localStorage.removeItem('token')
+		setUser(null)
+		setIsAuthenticated(false)
+	}
+
+	return createElement(
+		AuthenticationContext.Provider,
+		{
+			value: {
+				user,
+				isAuthenticated,
+				isLoading,
+				login,
+				logout,
+				refetchUser: fetchUser,
+			},
+		},
+		children
+	)
+}
+
+export default AuthenticationProvider
