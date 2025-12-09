@@ -1,2 +1,6 @@
+# Certificates
 certs/*
 !certs/example.pem
+
+# Server environment variables
+server.env

@@ -1,4 +1,4 @@
-import authRoutes from './Auth.js'
+import authRoutes from './Auth/index.js'
 
 /** Main API router that aggregates all API route modules */
 import express from 'express'

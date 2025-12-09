@@ -3,10 +3,11 @@
     "version": "1.0.0",
     "description": "AgriSense Server",
     "type": "module",
-    "main": "index.ts",
+    "main": "src/index.ts",
     "scripts": {
         "dev": "nodemon",
-        "start": "npx tsc && tsc-alias && cross-env NODE_ENV=production node dist/index.js",
+        "build": "tsc -b && tsc-alias",
+        "start": "npm run build && cross-env NODE_ENV=production node dist/server/src/index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "dependencies": {

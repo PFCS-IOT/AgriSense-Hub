@@ -1,38 +1,32 @@
 {
-	"compilerOptions": {
-		"lib": ["es2022"],
+    "compilerOptions": {
+        "lib": ["es2022"],
+        "module": "NodeNext",
 
-		/* Base Options */
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"target": "es2022",
-		"allowJs": true,
-		"resolveJsonModule": true,
-		"moduleDetection": "force",
-		"isolatedModules": true,
+        /* Base Options */
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "target": "es2022",
+        "allowJs": true,
+        "resolveJsonModule": true,
+        "moduleDetection": "force",
+        "isolatedModules": true,
 
-		/* Strictness */
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"noImplicitOverride": true,
+        /* Strictness */
+        "strict": true,
+        "noImplicitOverride": true,
 
-		/* For transpiling with TypeScript: */
-		"module": "NodeNext",
-		"rootDir": "src",
-		"outDir": "dist",
-		"sourceMap": true,
+        /* For transpiling with TypeScript: */
+        "rootDir": "..",
+        "outDir": "dist",
+        "sourceMap": true,
 
-		/* Path Aliases */
-		"paths": {
-			"root": ["./src"],
-			"Data/*": ["./src/Data/*"],
-			"Config/*": ["./src/Config/*"],
-			"Models/*": ["./src/Models/*"],
-			"Utility/*": ["./src/Utility/*"],
-			"Middleware/*": ["./src/Middleware/*"],
-			"Routes/*": ["./src/Routes/*"],
-			"Socket/*": ["./src/Socket/*"],
-			"Services/*": ["./src/Services/*"]
-		}
-	}
+        /* Path Aliases */
+        "paths": {
+            "Server/*": ["./src/*"],
+            "Shared/*": ["../shared/src/*"]
+        }
+    },
+    "include": ["./src/**/*", "../shared/src/**/*"],
+    "references": [{ "path": "../shared/tsconfig.server.json" }]
 }
