@@ -23,7 +23,7 @@ import PlantProfile from 'Server/Models/PlantProfile.js'
  * @property state - The current state of the device (auto mode, pump active)
  */
 export const PlantManager = {
-	latestSensorRecords: new Array<SensorRecordType>(MAX_SENSOR_RECORD_STORE),
+	latestSensorRecords: new Array<SensorRecordType>(),
 	currentPlantType: null as string | null,
 	currentPlantProfile: null as PlantProfileType | null,
 
