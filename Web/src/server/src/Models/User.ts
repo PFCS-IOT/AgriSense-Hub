@@ -20,20 +20,20 @@ export interface IUser extends ServerUser, Document {}
  * Mongoose schema for the User model.
  */
 const UserSchema = new Schema(
-    {
-        email: { type: String, unique: true, trim: true },
-        phoneNumber: { type: String, unique: true, trim: true },
-        password: { type: String, required: true },
-        username: { type: String, required: true, unique: true, trim: true },
-        role: {
-            type: String,
-            default: ROLES.User,
-            enum: Object.values(ROLES),
-        },
-        resetPasswordToken: { type: String },
-        resetPasswordExpires: { type: Date },
-    },
-    { timestamps: true }
+	{
+		email: { type: String, trim: true },
+		phoneNumber: { type: String, trim: true },
+		password: { type: String, required: true },
+		username: { type: String, required: true, unique: true, trim: true },
+		role: {
+			type: String,
+			default: ROLES.User,
+			enum: Object.values(ROLES),
+		},
+		resetPasswordToken: { type: String },
+		resetPasswordExpires: { type: Date },
+	},
+	{ timestamps: true }
 )
 
 export default model('User', UserSchema)
