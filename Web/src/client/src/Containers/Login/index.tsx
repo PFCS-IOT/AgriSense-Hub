@@ -61,7 +61,6 @@ const LoginContainer: React.FC = () => {
 		} catch (err: Error | unknown) {
 			const errorId = `err-${Date.now()}`
 
-			console.log(err)
 			// Dispatch an error notification
 			dispatch({
 				type: PageAction.AddNotification,
