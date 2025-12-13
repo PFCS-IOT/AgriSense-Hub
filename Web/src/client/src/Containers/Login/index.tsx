@@ -17,7 +17,7 @@ import LoginForm from 'Client/Components/Form/Login.js'
 const LoginContainer: React.FC = () => {
 	const navigate = useNavigate()
 
-	const { dispatch } = usePage()
+	const { dispatch, notify } = usePage()
 	const { isAuthenticated, login } = useAuth()
 
 	/**
@@ -44,46 +44,22 @@ const LoginContainer: React.FC = () => {
 
 			// Handle successful login
 			if (responseData.success) {
+				notify(
+					'success',
+					'Login successful! Redirecting to dashboard...',
+					5
+				)
 				login(responseData)
-
-				// Dispatch a success notification
-				dispatch({
-					type: PageAction.AddNotification,
-					payload: {
-						id: `login-success-${Date.now()}`,
-						message: 'Login successful! Redirecting...',
-						type: 'success',
-					},
-				})
 			} else if (responseData.error) {
 				throw new Error(responseData.error)
 			}
 		} catch (err: Error | unknown) {
-			const errorId = `err-${Date.now()}`
-
-			// Dispatch an error notification
-			dispatch({
-				type: PageAction.AddNotification,
-				payload: {
-					id: errorId,
-					message:
-						typeof err === 'object' &&
-						err != null &&
-						'message' in err
-							? (err as Error).message
-							: 'Login failed. Please check your credentials.',
-					type: 'error',
-				},
-			})
-
-			// Auto-remove notification after 5 seconds
-			setTimeout(
-				() =>
-					dispatch({
-						type: PageAction.RemoveNotification,
-						payload: errorId,
-					}),
-				5000
+			notify(
+				'error',
+				typeof err === 'object' && err != null && 'message' in err
+					? (err as Error).message
+					: 'Login failed. Please check your credentials.',
+				5
 			)
 		} finally {
 			dispatch({ type: PageAction.SetLoading, payload: false })

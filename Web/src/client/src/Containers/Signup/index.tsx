@@ -16,7 +16,7 @@ import SignupForm from 'Client/Components/Form/Signup.js'
 const SignupContainer: React.FC = () => {
 	const navigate = useNavigate()
 
-	const { dispatch } = usePage()
+	const { dispatch, notify } = usePage()
 	const { isAuthenticated, login } = useAuth()
 
 	/**
@@ -46,47 +46,22 @@ const SignupContainer: React.FC = () => {
 
 			// Handle successful registration
 			if (responseData.success) {
+				notify(
+					'success',
+					'Registration successful! Redirecting to dashboard...',
+					5
+				)
 				login(responseData)
-
-				// Dispatch a success notification
-				dispatch({
-					type: PageAction.AddNotification,
-					payload: {
-						id: `signup-success-${Date.now()}`,
-						message:
-							'Registration successful! Redirecting to dashboard...',
-						type: 'success',
-					},
-				})
 			} else if (responseData.error) {
 				throw new Error(responseData.error)
 			}
 		} catch (err: Error | unknown) {
-			const errorId = `err-${Date.now()}`
-
-			// Dispatch an error notification
-			dispatch({
-				type: PageAction.AddNotification,
-				payload: {
-					id: errorId,
-					message:
-						typeof err === 'object' &&
-						err != null &&
-						'message' in err
-							? (err as Error).message
-							: 'Registration failed. Please try again.',
-					type: 'error',
-				},
-			})
-
-			// Auto-remove notification after 5 seconds
-			setTimeout(
-				() =>
-					dispatch({
-						type: PageAction.RemoveNotification,
-						payload: errorId,
-					}),
-				5000
+			notify(
+				'error',
+				typeof err === 'object' && err != null && 'message' in err
+					? (err as Error).message
+					: 'Registration failed. Please try again.',
+				5
 			)
 		} finally {
 			dispatch({ type: PageAction.SetLoading, payload: false })

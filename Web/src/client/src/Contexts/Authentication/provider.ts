@@ -2,12 +2,10 @@ import React, { createElement, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import chalk from 'chalk'
 
-import type {
-	ServerUser as User,
-	ApiResponse,
-	LoginResponse,
-} from 'Shared/Data/Types/index.js'
+import type { ServerUser, LoginResponse } from 'Shared/Data/Types/index.js'
+import { PageAction } from 'Client/Data/Constants.js'
 import { Auth } from 'Client/Config/Api.js'
+import { usePage } from 'Client/Contexts/Page/index.js'
 import AuthenticationContext from './context.js'
 
 /**
@@ -19,7 +17,9 @@ import AuthenticationContext from './context.js'
 const AuthenticationProvider: React.FC<{ children: ReactNode }> = ({
 	children,
 }) => {
-	const [user, setUser] = useState<User | null>(null)
+	const { notify } = usePage()
+
+	const [user, setUser] = useState<ServerUser | null>(null)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
 	const [isLoading, setIsLoading] = useState(true)
 
@@ -31,6 +31,14 @@ const AuthenticationProvider: React.FC<{ children: ReactNode }> = ({
 
 		// No token, user is not authenticated
 		if (!token) {
+			// Notify user of missing token
+			notify(
+				'error',
+				'No authentication token found. Please log in again.',
+				5
+			)
+
+			// Clear authentication state
 			setUser(null)
 			setIsAuthenticated(false)
 			setIsLoading(false)
@@ -39,17 +47,26 @@ const AuthenticationProvider: React.FC<{ children: ReactNode }> = ({
 
 		// Token exists, verify it with the server
 		try {
-			const response = (await Auth.me()).data
-			if (response.success && response.data) {
-				setUser(response.data.user)
+			const response = await Auth.me()
+			const responseData = response.data
+
+			if (responseData.success && responseData.data) {
+				setUser(responseData.data.user)
 				setIsAuthenticated(true)
-			} else {
-				localStorage.removeItem('token')
-				setUser(null)
-				setIsAuthenticated(false)
+			} else if (responseData.error) {
+				throw new Error(responseData.error)
 			}
-		} catch (error) {
-			console.error(`${chalk.red('Error fetching user data:')} ${error}`)
+		} catch (error: Error | unknown) {
+			// Notify user of the error
+			notify(
+				'error',
+				typeof error === 'object' && error != null && 'message' in error
+					? (error as Error).message
+					: 'Authentication failed. Please log in again.',
+				5
+			)
+
+			// Clear authentication state
 			localStorage.removeItem('token')
 			setUser(null)
 			setIsAuthenticated(false)
