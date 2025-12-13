@@ -1,12 +1,12 @@
 import { Server, Socket } from 'socket.io'
 import chalk from 'chalk'
 
-import { IoTAction } from 'Shared/Data/Constants/index.js'
+import { IoTAction, IoTDeviceState } from 'Shared/Data/Constants/index.js'
 import {
 	PlantProfileType,
 	SensorRecordType,
 	SensorUpdate,
-	PumpStateUpdate,
+	DeviceStateUpdate,
 } from 'Shared/Data/Types/index.js'
 import { publishToDevice } from './index.js'
 import { MAX_SENSOR_RECORD_STORE } from 'Shared/Data/Constants/consts_IoT.js'
@@ -162,10 +162,10 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 			)
 
 			// Update system state
-			PlantManager.state.pumpActive = enable
+			// PlantManager.state.pumpActive = enable
 
-			// Broadcast UI update
-			io.emit('pump_state_update', enable)
+			// // Broadcast UI update
+			// io.emit('pump_state_update', enable)
 
 			// Acknowledge command receipt
 			socket.emit('command_ack', {
@@ -219,10 +219,10 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 			)
 
 			// Update system state
-			PlantManager.state.auto = enable
+			// PlantManager.state.auto = enable
 
-			// Broadcast UI update
-			io.emit('auto_state_update', enable)
+			// // Broadcast UI update
+			// io.emit('auto_state_update', enable)
 
 			// Acknowledge command receipt
 			socket.emit('command_ack', {
@@ -341,10 +341,24 @@ export const broadcastSensorData = (io: Server, data: SensorUpdate) => {
  * @param io - The Socket.io server instance
  * @param data - The device state update to broadcast
  */
-export const broadcastPumpStateUpdate = (io: Server, data: PumpStateUpdate) => {
-	// Update the latest device state
-	PlantManager.state.pumpActive = data.enable
+export const broadcastDeviceStateUpdate = (
+	io: Server,
+	data: DeviceStateUpdate
+) => {
+	switch (data.state) {
+		case IoTDeviceState.Pump:
+			PlantManager.state.pumpActive = data.enable
+			io.emit('pump_state_update', data.enable)
+			break
 
-	// Broadcast to all connected web clients
-	io.emit('pump_state_update', data.enable)
+		case IoTDeviceState.AutoMode:
+			PlantManager.state.auto = data.enable
+			io.emit('auto_state_update', data.enable)
+			break
+
+		default:
+			console.warn(
+				`${chalk.yellow('⚠️  [Warning] Unknown device state update received:')} ${data.state}`
+			)
+	}
 }

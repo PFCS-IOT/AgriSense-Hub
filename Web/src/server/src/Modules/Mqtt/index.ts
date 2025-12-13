@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import {
 	SensorData,
 	SensorUpdate,
-	PumpStateUpdate,
+	DeviceStateUpdate,
 } from 'Shared/Data/Types/index.js'
 import Keys from 'Server/Config/Keys.js'
 import User from 'Server/Models/User.js'
@@ -13,7 +13,7 @@ import SensorRecord from 'Server/Models/SensorRecord.js'
 import {
 	initHandler,
 	broadcastSensorData,
-	broadcastPumpStateUpdate,
+	broadcastDeviceStateUpdate,
 	PlantManager,
 } from './Handler.js'
 import NotificationService from 'Server/Services/NotificationService/index.js'
@@ -165,7 +165,7 @@ export const initMqtt = (io: Server) => {
 		// Parse the incoming message
 		const parsedMessage = JSON.parse(message.toString()) as
 			| SensorUpdate
-			| PumpStateUpdate
+			| DeviceStateUpdate
 
 		try {
 			// Check if the parsed message contains sensor data
@@ -190,10 +190,10 @@ export const initMqtt = (io: Server) => {
 				// Broadcast sensor data to websocket clients
 				broadcastSensorData(io, sensorUpdate)
 			} else if (parsedMessage.hasOwnProperty('enable')) {
-				const pumpStateUpdate = parsedMessage as PumpStateUpdate
+				const pumpStateUpdate = parsedMessage as DeviceStateUpdate
 
 				// Broadcast pump state update to websocket clients
-				broadcastPumpStateUpdate(io, pumpStateUpdate)
+				broadcastDeviceStateUpdate(io, pumpStateUpdate)
 			}
 		} catch (err) {
 			console.error(
