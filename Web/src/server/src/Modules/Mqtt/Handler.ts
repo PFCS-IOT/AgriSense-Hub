@@ -88,7 +88,10 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 	// Send the latest sensor records and system state to the newly connected client
 	socket.emit('initial_records', PlantManager.latestSensorRecords)
 	socket.emit('system_state', {
-		state: PlantManager.state.auto,
+		state: {
+			pump: PlantManager.state.pumpActive,
+			automode: PlantManager.state.auto,
+		},
 		currentPlantType: PlantManager.currentPlantType,
 		currentPlantProfile: PlantManager.currentPlantProfile,
 	})
@@ -162,10 +165,10 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 			)
 
 			// Update system state
-			// PlantManager.state.pumpActive = enable
+			PlantManager.state.pumpActive = enable
 
-			// // Broadcast UI update
-			// io.emit('pump_state_update', enable)
+			// Broadcast UI update
+			io.emit('pump_state_update', enable)
 
 			// Acknowledge command receipt
 			socket.emit('command_ack', {
@@ -219,10 +222,10 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 			)
 
 			// Update system state
-			// PlantManager.state.auto = enable
+			PlantManager.state.auto = enable
 
-			// // Broadcast UI update
-			// io.emit('auto_state_update', enable)
+			// Broadcast UI update
+			io.emit('auto_state_update', enable)
 
 			// Acknowledge command receipt
 			socket.emit('command_ack', {

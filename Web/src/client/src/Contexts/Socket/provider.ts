@@ -22,17 +22,38 @@ const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 	const { isAuthenticated } = useAuth()
 	const token = useRef(localStorage.getItem('token'))
 
-	const socket = useRef<Socket | null>(null)
+	const [socket] = useState<Socket>(
+		io(SOCKET_URL, {
+			transports: ['websocket'],
+			autoConnect: false,
+			reconnection: true,
+			reconnectionAttempts: 5,
+		})
+	)
 	const [connected, setConnected] = useState(false)
 
-	// Update token ref on authentication state changes
+	// Setup socket event listeners
 	useEffect(() => {
-		token.current = localStorage.getItem('token')
-	}, [isAuthenticated])
+		// Setup Event Listeners
+		socket.on('connect', () => {
+			console.log('Socket Connected:', socket?.id)
+			setConnected(true)
+		})
+
+		socket.on('disconnect', () => {
+			console.log('Socket Disconnected')
+			setConnected(false)
+		})
+
+		socket.on('connect_error', (err) => {
+			console.error('Socket Connection Error:', err)
+		})
+	}, [])
 
 	// Manage socket connection based on authentication state
 	useEffect(() => {
 		if (isAuthenticated) {
+			token.current = localStorage.getItem('token')
 			connect()
 		} else {
 			disconnect()
@@ -44,40 +65,29 @@ const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 	 */
 	const connect = useCallback(() => {
 		// Prevent multiple connections or connecting without a token
-		if (socket.current?.connected || !token.current) return
+		if (socket.connected || !token.current) return
 
-		// Initialize socket client
-		socket.current = io(SOCKET_URL, {
-			auth: { token: `Bearer ${token.current}` },
-			transports: ['websocket'],
-			reconnection: true,
-			reconnectionAttempts: 5,
-		})
-
-		// Setup Event Listeners
-		socket.current.on('connect', () => {
-			console.log('Socket Connected:', socket.current?.id)
+		// Set authentication token in socket options
+		socket.auth = { token: `Bearer ${token.current}` }
+		try {
+			socket.connect()
 			setConnected(true)
-		})
-
-		socket.current.on('disconnect', () => {
-			console.log('Socket Disconnected')
-			setConnected(false)
-		})
-
-		socket.current.on('connect_error', (err) => {
-			console.error('Socket Connection Error:', err)
-		})
+		} catch (error) {
+			console.error('Socket connection error:', error)
+		}
 	}, [])
 
 	/**
 	 * Disconnects the socket if it is active.
 	 */
 	const disconnect = useCallback(() => {
-		if (socket.current) {
-			socket.current.disconnect()
-			socket.current = null
-			setConnected(false)
+		if (socket.connected) {
+			try {
+				socket.disconnect()
+				setConnected(false)
+			} catch (error) {
+				console.error('Socket disconnection error:', error)
+			}
 		}
 	}, [])
 
@@ -85,7 +95,7 @@ const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 		SocketContext.Provider,
 		{
 			value: {
-				socket: socket.current,
+				socket: socket,
 				connected,
 				connect,
 				disconnect,
