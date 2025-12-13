@@ -15,83 +15,84 @@ import LoginForm from 'Client/Components/Form/Login.js'
  * @return The LoginContainer component.
  */
 const LoginContainer: React.FC = () => {
-    const navigate = useNavigate()
+	const navigate = useNavigate()
 
-    const { dispatch } = usePage()
-    const { isAuthenticated, login } = useAuth()
+	const { dispatch } = usePage()
+	const { isAuthenticated, login } = useAuth()
 
-    /**
-     * Redirect to dashboard if already authenticated.
-     */
-    useEffect(() => {
-        if (isAuthenticated) {
-            navigate('/dashboard', { replace: true })
-        }
-    }, [isAuthenticated, navigate])
+	/**
+	 * Redirect to dashboard if already authenticated.
+	 */
+	useEffect(() => {
+		if (isAuthenticated) {
+			navigate('/dashboard', { replace: true })
+		}
+	}, [isAuthenticated, navigate])
 
-    /**
-     * Handle user login.
-     *
-     * @param credentials - The login credentials.
-     */
-    const handleLogin = async (credentials: LoginRequest) => {
-        dispatch({ type: PageAction.SetLoading, payload: true })
-        dispatch({ type: PageAction.SetPageTitle, payload: 'Logging In...' })
+	/**
+	 * Handle user login.
+	 *
+	 * @param credentials - The login credentials.
+	 */
+	const handleLogin = async (credentials: LoginRequest) => {
+		dispatch({ type: PageAction.SetLoading, payload: true })
+		dispatch({ type: PageAction.SetPageTitle, payload: 'Logging In...' })
 
-        try {
-            const response = await Auth.login(credentials)
-            const responseData = response.data
+		try {
+			const response = await Auth.login(credentials)
+			const responseData = response.data
 
-            // Handle successful login
-            if (responseData.success) {
-                login(responseData)
+			// Handle successful login
+			if (responseData.success) {
+				login(responseData)
 
-                // Dispatch a success notification
-                dispatch({
-                    type: PageAction.AddNotification,
-                    payload: {
-                        id: `login-success-${Date.now()}`,
-                        message: 'Login successful! Redirecting...',
-                        type: 'success',
-                    },
-                })
-            } else if (response.error) {
-                throw new Error(response.error)
-            }
-        } catch (err: Error | unknown) {
-            const errorId = `err-${Date.now()}`
+				// Dispatch a success notification
+				dispatch({
+					type: PageAction.AddNotification,
+					payload: {
+						id: `login-success-${Date.now()}`,
+						message: 'Login successful! Redirecting...',
+						type: 'success',
+					},
+				})
+			} else if (responseData.error) {
+				throw new Error(responseData.error)
+			}
+		} catch (err: Error | unknown) {
+			const errorId = `err-${Date.now()}`
 
-            // Dispatch an error notification
-            dispatch({
-                type: PageAction.AddNotification,
-                payload: {
-                    id: errorId,
-                    message:
-                        typeof err === 'object' &&
-                        err != null &&
-                        'message' in err
-                            ? (err as Error).message
-                            : 'Login failed. Please check your credentials.',
-                    type: 'error',
-                },
-            })
+			console.log(err)
+			// Dispatch an error notification
+			dispatch({
+				type: PageAction.AddNotification,
+				payload: {
+					id: errorId,
+					message:
+						typeof err === 'object' &&
+						err != null &&
+						'message' in err
+							? (err as Error).message
+							: 'Login failed. Please check your credentials.',
+					type: 'error',
+				},
+			})
 
-            // Auto-remove notification after 5 seconds
-            setTimeout(
-                () =>
-                    dispatch({
-                        type: PageAction.RemoveNotification,
-                        payload: errorId,
-                    }),
-                5000
-            )
-        } finally {
-            dispatch({ type: PageAction.SetLoading, payload: false })
-            dispatch({ type: PageAction.SetPageTitle, payload: 'Login' })
-        }
-    }
+			// Auto-remove notification after 5 seconds
+			setTimeout(
+				() =>
+					dispatch({
+						type: PageAction.RemoveNotification,
+						payload: errorId,
+					}),
+				5000
+			)
+		} finally {
+			dispatch({ type: PageAction.SetLoading, payload: false })
+			dispatch({ type: PageAction.SetPageTitle, payload: 'Login' })
+		}
+	}
 
-    return <LoginForm onLogin={handleLogin} />
+	return <LoginForm onLogin={handleLogin} />
 }
 
 export default LoginContainer

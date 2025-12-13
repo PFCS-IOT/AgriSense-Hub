@@ -1,4 +1,8 @@
-import axios from 'axios'
+import axios, {
+	type AxiosError,
+	type AxiosResponse,
+	type InternalAxiosRequestConfig,
+} from 'axios'
 
 import type {
 	LoginRequest,
@@ -22,15 +26,34 @@ const api = axios.create({
 })
 
 /**
- * Interceptor to add the JWT token to every outgoing request if it exists.
+ * Request Interceptor.
+ * Automatically attaches the JWT token from localStorage to every outgoing request.
+ *
+ * @param {InternalAxiosRequestConfig} config - The axios request configuration.
+ * @returns {InternalAxiosRequestConfig} The modified configuration with Authorization header.
  */
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 	const token = localStorage.getItem('token')
-	if (token) {
+	if (token && config.headers) {
 		config.headers.Authorization = `Bearer ${token}`
 	}
 	return config
 })
+
+/**
+ * Response Interceptor.
+ * Handles global responses and errors.
+ * Currently passes through successful responses and rejects errors.
+ *
+ * @param {AxiosResponse} response - The successful response.
+ * @returns {AxiosResponse | Promise<never>} The response or a rejected promise.
+ */
+api.interceptors.response.use(
+	(response: AxiosResponse) => response,
+	async (error: AxiosError) => {
+		return error.response
+	}
+)
 
 /**
  * Authentication related API calls.

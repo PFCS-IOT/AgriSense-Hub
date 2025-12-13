@@ -58,8 +58,8 @@ const SignupContainer: React.FC = () => {
 						type: 'success',
 					},
 				})
-			} else if (response.error) {
-				throw new Error(response.error)
+			} else if (responseData.error) {
+				throw new Error(responseData.error)
 			}
 		} catch (err: Error | unknown) {
 			const errorId = `err-${Date.now()}`
