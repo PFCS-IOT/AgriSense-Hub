@@ -249,7 +249,7 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 	})
 
 	// Listen for plant type change events from the client to load new safe thresholds
-	socket.on('change_plant_type', (plantType: string) => {
+	socket.on('change_plant_type', async (plantType: string) => {
 		console.log(
 			`${chalk.blue('[Change Plant] User ${socket.id} changed plant type to ${plantType}.')}`
 		)
@@ -272,17 +272,23 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 
 		// Send updated safe thresholds to the client
 		try {
-			const thresholds = PlantProfile.findOne({
+			// Load the plant profile from the database
+			const profile = await PlantProfile.findOne({
 				plantType: plantType,
-			})
-				.lean()
-				.exec()
+			}).exec()
+
+			if (!profile) {
+				throw new Error('Plant profile not found')
+			}
+
+			// Extract safe thresholds from the plant profile
+			const safeThresholds = profile.toObject().safeThresholds
 
 			// Send the new thresholds to the device
 			publishToDevice(
 				JSON.stringify({
 					action: IoTAction.SetThreshold,
-					value: thresholds,
+					value: safeThresholds,
 				})
 			)
 
@@ -292,7 +298,7 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 			// Broadcast plant type update
 			io.emit('plant_type_update', {
 				plantType: plantType,
-				thresholds: thresholds,
+				thresholds: safeThresholds,
 			})
 
 			// Send safe thresholds to client
