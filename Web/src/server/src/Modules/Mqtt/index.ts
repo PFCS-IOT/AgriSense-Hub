@@ -293,10 +293,6 @@ export const publishPumpCommand = (command: 'YES' | 'NO') => {
 	}
 }
 
-/**
- * Evaluate last 5 moisture samples and publish YES/NO to pump topic
- * S_trungbinh = (1/5) * sum(Si) for last 5 samples
- */
 export const evaluateAndPublishPumpDecision = async () => {
 	try {
 		const records = (await SensorRecord.find()
@@ -305,35 +301,75 @@ export const evaluateAndPublishPumpDecision = async () => {
 			.lean()
 			.exec()) as any[]
 
-		if (!records || records.length < 5) {
+		if (!records || records.length === 0) {
 			console.log(
-				'Not enough sensor records to evaluate pump decision (need 5).'
+				'No sensor records found. Defaulting to NO pump to be safe.'
 			)
+			publishPumpCommand('NO')
 			return
 		}
 
-		// Extract moisture values and ensure they are numbers
-		const values = records
-			.map((r) =>
-				r && r.data && typeof r.data.moisture === 'number'
-					? r.data.moisture
-					: null
-			)
-			.filter((v) => v !== null) as number[]
+		const validRecords = records.filter(
+			(r) =>
+				r &&
+				r.data &&
+				typeof r.data.moisture === 'number' &&
+				typeof r.data.temperature === 'number' &&
+				typeof r.data.humidity === 'number'
+		)
 
-		if (values.length < 5) {
-			console.log(
-				'Not enough valid moisture values to evaluate pump decision.'
-			)
+		if (validRecords.length === 0) {
+			console.log('Records found but data invalid.')
 			return
 		}
 
-		const sum = values.reduce((a, b) => a + b, 0)
-		const avg = sum / 5
+		const sumM = validRecords.reduce((a, b) => a + b.data.moisture, 0)
+		const sumT = validRecords.reduce((a, b) => a + b.data.temperature, 0)
+		const sumH = validRecords.reduce((a, b) => a + b.data.humidity, 0)
 
-		console.log(`Average moisture (last 5) = ${avg}`)
+		const avgMoisture = sumM / validRecords.length
+		const avgTemp = sumT / validRecords.length
+		const avgHum = sumH / validRecords.length
 
-		const command: 'YES' | 'NO' = avg <= 40 ? 'YES' : 'NO'
+		const latestMoisture = validRecords[0].data.moisture
+
+		console.log(
+			chalk.blue(
+				`Analysis (n=${validRecords.length}): AvgM:${avgMoisture.toFixed(1)}%, AvgT:${avgTemp.toFixed(1)}C, AvgH:${avgHum.toFixed(1)}% | LatestM:${latestMoisture}%`
+			)
+		)
+
+		let moistureThreshold = 40
+
+		if (avgTemp > 30 && avgHum < 60) {
+			moistureThreshold = 50
+			console.log(
+				chalk.yellow('Condition: Hot & Dry -> Raised threshold to 50%')
+			)
+		} else if (avgTemp < 20 || avgHum > 85) {
+			moistureThreshold = 30
+			console.log(
+				chalk.cyan('Condition: Cold/Wet -> Lowered threshold to 30%')
+			)
+		}
+
+		const SAFETY_UPPER_LIMIT = 70
+
+		let command: 'YES' | 'NO' = 'NO'
+
+		if (latestMoisture >= SAFETY_UPPER_LIMIT) {
+			command = 'NO'
+			console.log(
+				chalk.magenta(
+					`Safety Cut-off: Latest moisture (${latestMoisture}%) is high.`
+				)
+			)
+		} else if (avgMoisture <= moistureThreshold) {
+			command = 'YES'
+		} else {
+			command = 'NO'
+		}
+
 		publishPumpCommand(command)
 	} catch (err) {
 		console.error(
