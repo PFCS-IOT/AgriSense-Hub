@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { MqttClient } from 'mqtt'
 import chalk from 'chalk'
+import Keys from 'Server/Config/Keys.js'
 
 /* Weather API Configuration - TP.HCM */
 const WEATHER_LAT = 10.8231
@@ -11,7 +12,7 @@ const WEATHER_LON = 106.6297
 // const WEATHER_LON = 103.8198
 
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast'
-const TOPIC_FORECAST = `/23127530/forecast`
+const TOPIC_FORECAST = `/${Keys.mqtt.deviceId}/forecast`
 
 /* MQTT Client Instance */
 let mqttClient: MqttClient | null = null
