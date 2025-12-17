@@ -38,8 +38,8 @@ const MQTT_CONFIG: IClientOptions = {
 let mqttClient: MqttClient
 
 /* MQTT Topics */
-const topicData = `devices/${Keys.mqtt.deviceId}/data`
-const topicCommands = `devices/${Keys.mqtt.deviceId}/commands`
+const topicData = `devices/${Keys.mqtt.deviceId}/data` // subscribe to receive data from device
+const topicCommands = `devices/${Keys.mqtt.deviceId}/commands` //publish commands to device
 
 /**
  * Check sensor data against safe thresholds and notify users if needed
@@ -141,6 +141,7 @@ export const initMqtt = (io: Server) => {
 
 	// Connect to MQTT Broker
 	mqttClient = mqtt.connect(MQTT_CONFIG)
+
 	initWeatherService(mqttClient) // Task2 - HUY QUANG TRUONG
 
 	// Handle successful connection
@@ -166,7 +167,7 @@ export const initMqtt = (io: Server) => {
 		console.log(chalk.cyan('Starting Weather Forecast Scheduler...'))
 		startWeatherForecastScheduler() // Task2 - HUY QUANG TRUONG
 
-		/* TASK 1: HUY QUANG TRUONG - START SCHEDULER */
+		// TASK 1 - HUY QUANG TRUONG
 		console.log(
 			chalk.cyan('Starting Pump Decision Scheduler (Every 30s)...')
 		)
@@ -178,7 +179,7 @@ export const initMqtt = (io: Server) => {
 				)
 			})
 		}, 30000)
-		/* END TASK 1 */
+		// TASK 1 -  HUY QUANG TRUONG
 	})
 
 	// Handle incoming MQTT messages
@@ -188,7 +189,7 @@ export const initMqtt = (io: Server) => {
 		try {
 			const parsedMessage = JSON.parse(message.toString())
 
-			// TASK 4 : HUY QUANG TRUONG
+			// TASK 4 - HUY QUANG TRUONG
 			if (
 				parsedMessage.hasOwnProperty('temp') ||
 				parsedMessage.hasOwnProperty('soil')
@@ -237,7 +238,7 @@ export const initMqtt = (io: Server) => {
 				err
 			)
 		}
-		// TASK 4 : HUY QUANG TRUONG
+		// TASK 4 - HUY QUANG TRUONG
 	})
 
 	// Handle connection errors
@@ -268,24 +269,24 @@ export const publishToDevice = (command: string) => {
 
 export default null
 
-//    TASK 1: HUY QUANG TRUONG
+//TASK 1 -  HUY QUANG TRUONG
 export const evaluateAndPublishPumpDecision = async () => {
 	try {
-		// 1. Lấy 5 bản ghi mới nhất từ DB
+		//  Get latest 5 sensor records
 		const records = (await SensorRecord.find()
 			.sort({ timestamp: -1 })
 			.limit(5)
 			.lean()
 			.exec()) as any[]
 
-		// 2. Kiểm tra dữ liệu rỗng -> Mặc định tắt bơm an toàn
+		// check empty records -> return
 		if (!records || records.length === 0) {
 			console.log('No sensor records found. Defaulting to NO pump.')
 			publishToDevice(JSON.stringify({ action: 'PUMP', enable: false }))
 			return
 		}
 
-		// 3. Lọc các bản ghi hợp lệ
+		// fillter
 		const validRecords = records.filter(
 			(r) =>
 				r &&
@@ -297,7 +298,7 @@ export const evaluateAndPublishPumpDecision = async () => {
 
 		if (validRecords.length === 0) return
 
-		// 4. Tính toán trung bình
+		// avg
 		const sumM = validRecords.reduce((a, b) => a + b.data.moisture, 0)
 		const sumT = validRecords.reduce((a, b) => a + b.data.temperature, 0)
 		const sumH = validRecords.reduce((a, b) => a + b.data.humidity, 0)
@@ -313,8 +314,7 @@ export const evaluateAndPublishPumpDecision = async () => {
 			)
 		)
 
-		// 5. Logic điều chỉnh ngưỡng độ ẩm dựa trên thời tiết
-		let moistureThreshold = 40 // Ngưỡng mặc định
+		let moistureThreshold = 40 // auto threshold
 
 		if (avgTemp > 30 && avgHum < 60) {
 			moistureThreshold = 50
@@ -332,7 +332,7 @@ export const evaluateAndPublishPumpDecision = async () => {
 
 		const SAFETY_UPPER_LIMIT = 70
 
-		// 6. Ra quyết định (Decision Making)
+		// Decision Making
 		let shouldPump = false
 
 		if (latestMoisture >= SAFETY_UPPER_LIMIT) {
@@ -354,7 +354,7 @@ export const evaluateAndPublishPumpDecision = async () => {
 			console.log(chalk.gray(`-> Decision: PUMP OFF`))
 		}
 
-		// 7. Gửi lệnh xuống ESP32
+		// Publish command
 		const payload = JSON.stringify({
 			action: 'PUMP',
 			enable: shouldPump,
@@ -367,4 +367,4 @@ export const evaluateAndPublishPumpDecision = async () => {
 		)
 	}
 }
-/* END TASK 1 */
+//TASK 1 - HUY QUANG TRUONG
