@@ -97,25 +97,34 @@ const checkAndNotify = async (sensorData: SensorData) => {
 			if (smsMessage){
 				NotificationService.sendTelegramAlert(smsMessage)
 			}
-			
-
-			// // Notify all users via Email 
-			// for (const user of users) {
-			// 	if (user.email) {
-			// 		NotificationService.MailService.sendMail(
-			// 			user.email,
-			// 			'alert',
-			// 			{
-			// 				username: user.username,
-			// 				warnings: warnings,
-			// 				sensorData: sensorData,
-			// 			}
-			// 		)
-			// 	}
-
-			
-			}
+			console.log(chalk.blue(`📡 Bắt đầu gửi email cho ${users.length} người dùng...`));
+			//sendEmail(toEmail: string, subject: string, htmlContent: string)
+			//  Notify all users via Email 
+			 for (const user of users) {
+			  	if (user.email) {
+			  	await NotificationService.sendMail(
+			 			user.email,
+						'Critical Sensor Alert',
+						`<p>Dear ${user.username},</p>
+						<p>The following critical sensor warnings have been detected:</p>
+						<ul>
+							${warnings.map((w) => `<li>${w}</li>`).join('')}
+						</ul>
+						<p>Current Sensor Readings:</p>
+						<ul>
+							<li>Temperature: ${sensorData.temperature}°C</li>
+							<li>Humidity: ${sensorData.humidity}%</li>
+							<li>Soil Moisture: ${sensorData.moisture}%</li>
+						</ul>
+						<p>Please check your system immediately.</p>
+						<p>Best regards,<br/>AgriHub System</p>`
+					)
+					}
+				}
 		}
+	}	
+		
+		
 	 catch (error) {
 		console.error(
 			chalk.red(
@@ -192,6 +201,7 @@ export const initMqtt = (io: Server) => {
 				broadcastSensorData(io, sensorUpdate)
 			
 				// check update state 
+				
             } else if (parsedMessage.hasOwnProperty('enable')) {
                 const deviceStateUpdate = parsedMessage as DeviceStateUpdate
 
