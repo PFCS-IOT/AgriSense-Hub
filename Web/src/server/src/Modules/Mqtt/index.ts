@@ -17,7 +17,6 @@ import {
 	PlantManager,
 } from './Handler.js'
 import NotificationService from 'Server/Services/NotificationService/index.js'
-import GetSmsTemplate from 'Server/Services/NotificationService/telegramNotify/Template.js'
 
 import {
 	initWeatherService,
@@ -93,15 +92,15 @@ const checkAndNotify = async (sensorData: SensorData) => {
 			const users = await User.find().lean().exec()
 
 			// Prepare notify msg
-			const smsMessage = GetSmsTemplate('alert', {
-				warnings,
-				sensorData,
-			})
+			// const smsMessage = GetSmsTemplate('alert', {
+			// 	warnings,
+			// 	sensorData,
+			// })
 
-			//send notify via telegram
-			if (smsMessage) {
-				NotificationService.sendTelegramAlert(smsMessage)
-			}
+			// //send notify via telegram
+			// if (smsMessage) {
+			// 	NotificationService.sendTelegramAlert(smsMessage)
+			// }
 
 			// // Notify all users via Email
 			// for (const user of users) {
