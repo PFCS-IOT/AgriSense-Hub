@@ -8,12 +8,13 @@ import Keys from 'Server/Config/Keys.js'
 import SensorRecord from 'Server/Models/SensorRecord.js'
 import {
 	initHandler,
+	mqttInitHandler,
 	checkAndNotify,
 	evaluateAndPublishPumpDecision,
 	broadcastSensorData,
 	broadcastDeviceStateUpdate,
 } from './Handler.js'
-import WeatherService from 'Server/Services/WeatherService.js'
+import { ForcastData } from 'Server/Services/WeatherService.js'
 
 /* MQTT Client Setup */
 const MQTT_CONFIG: IClientOptions = {
@@ -46,7 +47,7 @@ export const initMqtt = (io: Server) => {
 	mqttClient = mqtt.connect(MQTT_CONFIG)
 
 	// Handle successful connection
-	mqttClient.on('connect', () => {
+	mqttClient.on('connect', async () => {
 		console.log(
 			`${chalk.green('✓')} ${chalk.blue('Server: Connected to MQTT Broker (TLS)')}`
 		)
@@ -65,10 +66,8 @@ export const initMqtt = (io: Server) => {
 			}
 		})
 
-		// Listen for weather forecast updates and publish to MQTT
-		WeatherService.onWeatherForcastUpdate((weatherData) => {
-			mqttClient.publish(topicWeather, JSON.stringify(weatherData))
-		})
+		// Initialize MQTT-related state
+		await mqttInitHandler()
 	})
 
 	// Handle incoming MQTT messages
@@ -110,6 +109,9 @@ export const initMqtt = (io: Server) => {
 
 				// Broadcast device state update to websocket clients
 				broadcastDeviceStateUpdate(io, deviceStateUpdate)
+			} else if (parsedMessage.hasOwnProperty('booted')) {
+				// Re-initialize MQTT state on device reboot
+				await mqttInitHandler()
 			}
 		} catch (err) {
 			console.error(
@@ -138,9 +140,21 @@ export const initMqtt = (io: Server) => {
  * @param deviceId - ID of the target device
  * @param command - Command to send to the device
  */
-export const publishToDevice = (command: string) => {
+export const commandDevice = (command: string) => {
 	if (mqttClient?.connected) {
 		mqttClient.publish(topicCommands, command)
 		console.log(`Sent "${command}" to ${topicCommands}`)
+	}
+}
+
+/**
+ * Publish weather forecast data to the device via MQTT
+ *
+ * @param weatherData - Weather forecast data to send
+ */
+export const publishWeatherForcastToDevice = (weatherData: ForcastData) => {
+	if (mqttClient?.connected) {
+		mqttClient.publish(topicWeather, JSON.stringify(weatherData))
+		console.log(`Published weather data to ${topicWeather}`)
 	}
 }

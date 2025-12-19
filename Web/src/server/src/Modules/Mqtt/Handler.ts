@@ -11,7 +11,7 @@ import {
 } from 'Shared/Data/Types/index.js'
 import { MAX_SENSOR_RECORD_STORE } from 'Shared/Data/Constants/consts_IoT.js'
 
-import { publishToDevice } from './index.js'
+import { commandDevice, publishWeatherForcastToDevice } from './index.js'
 import User from 'Server/Models/User.js'
 import SensorRecord from 'Server/Models/SensorRecord.js'
 import PlantProfile from 'Server/Models/PlantProfile.js'
@@ -82,6 +82,39 @@ export const initHandler = async () => {
 			err
 		)
 	}
+}
+
+/**
+ * Handle initialization upon MQTT connection.
+ */
+export const mqttInitHandler = async () => {
+	// Update initial weather forecast to device
+	publishWeatherForcastToDevice(await WeatherService.forcastWeather())
+
+	// Listen for weather forecast updates and publish to MQTT
+	WeatherService.onWeatherForcastUpdate((weatherData) => {
+		publishWeatherForcastToDevice(weatherData)
+	})
+
+	// Publish initial server state to device
+	commandDevice(
+		JSON.stringify({
+			action: IoTAction.ToggleAuto,
+			value: PlantManager.state.auto,
+		})
+	)
+	commandDevice(
+		JSON.stringify({
+			action: IoTAction.SetThreshold,
+			value: PlantManager.currentPlantProfile?.safeThresholds,
+		})
+	)
+	commandDevice(
+		JSON.stringify({
+			action: IoTAction.Pump,
+			enable: PlantManager.state.pumpActive,
+		})
+	)
 }
 
 /**
@@ -166,7 +199,7 @@ export const socketInitHandler = async (socket: Socket, io: Server) => {
 
 		// Publish to device via MQTT
 		try {
-			publishToDevice(
+			commandDevice(
 				JSON.stringify({
 					action: IoTAction.Pump,
 					enable: enable,
@@ -224,7 +257,7 @@ export const socketInitHandler = async (socket: Socket, io: Server) => {
 		}
 
 		try {
-			publishToDevice(
+			commandDevice(
 				JSON.stringify({
 					action: IoTAction.ToggleAuto,
 					value: enable,
@@ -294,7 +327,7 @@ export const socketInitHandler = async (socket: Socket, io: Server) => {
 			const safeThresholds = profile.toObject().safeThresholds
 
 			// Send the new thresholds to the device
-			publishToDevice(
+			commandDevice(
 				JSON.stringify({
 					action: IoTAction.SetThreshold,
 					value: safeThresholds,
@@ -530,15 +563,11 @@ export const evaluateAndPublishPumpDecision = async (
 		!PlantManager.state.pumpActive &&
 		sensorData.moisture <= lowerThreshold
 	) {
-		publishToDevice(
-			JSON.stringify({ action: IoTAction.Pump, enable: true })
-		)
+		commandDevice(JSON.stringify({ action: IoTAction.Pump, enable: true }))
 	} else if (
 		PlantManager.state.pumpActive &&
 		sensorData.moisture >= (upperThreshold + lowerThreshold) / 2
 	) {
-		publishToDevice(
-			JSON.stringify({ action: IoTAction.Pump, enable: false })
-		)
+		commandDevice(JSON.stringify({ action: IoTAction.Pump, enable: false }))
 	}
 }
