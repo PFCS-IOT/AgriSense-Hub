@@ -54,16 +54,11 @@ const SensorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 				})
 			)
 
-			// Sort records by timestamp ascending
-			const sortedRecords = normalizedRecords.sort(
-				(a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-			)
-
 			// Set records if any exist
 			if (records.length > 0) {
-				setRecordHistory(sortedRecords)
+				setRecordHistory(normalizedRecords)
 				setCurrentReadings(
-					normalizedRecords[sortedRecords.length - 1].data
+					normalizedRecords[normalizedRecords.length - 1].data
 				)
 			}
 		})
