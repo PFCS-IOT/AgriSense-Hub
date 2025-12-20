@@ -6,6 +6,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <TimeLib.h>
 #include <ArduinoJson.h>
+
 const char* deviceID = "smartfarmdevice001";
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
@@ -19,7 +20,7 @@ const char* mqtt_password = "Phu050912";
 WiFiClientSecure wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-// Cấu hình cảm biến DHT22
+// Cấu hình cảm biến DHT22s
 #define DHTPIN 4
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
@@ -36,14 +37,32 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // Buzzer
 #define BUZZER_PIN 18
-bool pumpStatus = false;
 
-float TemperatureLimit;
-float AirHumidityLimit ;
-float SoilMoistureLimit ;
+bool pumpStatus = false;
+bool autoMode;
+
+float TemperatureOver;
+float TemperatureUnder;
+
+float AirHumidityOver ;
+float AirHumidityUnder;
+
+float SoilMoistureOver ;
+float SoilMoistureUnder ;
+
+int rainProb = 0;
+
+
 
 unsigned long lastMeasureTime = 0;
 const unsigned long measureInterval = 5000; 
+
+//subcribed topic
+String commandTopic = "devices/" + String(deviceID) + "/commands";
+String forecastTopic = "devices/" + String(deviceID) + "/forecast";
+
+//Publish topic
+String dataTopic = "devices/" + String(deviceID) + "/data";
 
 void wifiConnect() {
   WiFi.begin(ssid, password);
@@ -54,39 +73,44 @@ void wifiConnect() {
   Serial.println(" Connected!");
 }
 
-bool autoMode;
+
 
 void mqttConnect() {
   while(!mqttClient.connected()) {
     Serial.println("Attemping MQTT connection...");
+    //clientID random tránh va chạm 2 thiết bị với nhau cùng kết nối 1 broker
+
     String clientId = "ESP32Client-" + String(random(0xffff), HEX);
     if(mqttClient.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
       Serial.println("connected");
 
-      String subscribeTopic = "devices/" + String(deviceID) + "/commands";
-      String subscribeForcastTopic = "devices/" + String(deviceID) + "/forecast";
-      mqttClient.subscribe(subscribeTopic.c_str());
-      mqttClient.subscribe(subscribeForcastTopic.c_str());
+      mqttClient.subscribe(commandTopic.c_str());
+      mqttClient.subscribe(forecastTopic.c_str());
+
+      //debug
+      Serial.println("Subscribed to: " + commandTopic);
+      Serial.print("Subscribed to: " + forecastTopic);
+
+
 //       khi kết nối với mqtt broker thì publish một cái data như sau 
 //        {
 //            booted: true
 //         }
-        // Prepare JSON Payload
-    //booted payload is to inform server that device has restarted so that server can broadcasted 
+    
+    //booted payload is to inform server that device has restarted so that
+    // server can broadcasted 
+
     String jsonPayload = "{\"booted\": true}";
-
-    String topic = "devices/" + String(deviceID) + "/data";
-
     // Debug print
-    Serial.print("Publishing to " + topic + ": ");
+    Serial.print("Publishing to " + dataTopic + ": ");
     Serial.println(jsonPayload);
     
-    mqttClient.publish(topic.c_str(), jsonPayload.c_str());
+    mqttClient.publish(dataTopic.c_str(), jsonPayload.c_str());
 
-      Serial.println("Subscribed to: " + subscribeTopic);
-      Serial.print("Subscribed to: " + subscribeForcastTopic);
     }
-    else {
+    //try reconnect after 5s
+    else 
+    {
       Serial.print(mqttClient.state());
       Serial.println(" try again in 5 seconds");
       delay(5000);
@@ -95,28 +119,27 @@ void mqttConnect() {
 }
 
 
-//nhận lệnh từ server
+//nhận lệnh msg từ server
 void callback(char* topic, byte* message, unsigned int length) {
+  //debug 
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-
-  // Create a string from the message payload for debugging
+  //byte message[] = { '{', '"', 'v', '"', ':', '1', '}' };
+  // Create a msgString from the message recieved 
   String msgString = "";
+  
   for (int i = 0; i < length; i++) {
     msgString += (char)message[i];
   }
+  
   Serial.println(msgString);
 
   // Check if the topic matches our command topic
-  String commandTopic = "devices/" + String(deviceID) + "/commands";
-  // String commandTopicForecast = "devices/" + String(deviceID) + "/forecast";
-
   if (String(topic) == commandTopic) {
  
-    JsonDocument doc; 
+    JsonDocument doc; //    doc <key,value>
 
- 
     DeserializationError error = deserializeJson(doc, message, length);
 
     if (error) {
@@ -134,19 +157,21 @@ void callback(char* topic, byte* message, unsigned int length) {
     // 	enable: boolean
     // }
 
-
-
     //ack purpose is for confirming the current state after command execution for synchronization 
     //between device and server ( if the server UI need to change based on device state)
-    const char* action = doc["action"];
+    
+    const char* action = doc["action"]; //extract the value of "action" key
+                                        // e.g., "PUMP", "TOGGLE_AUTO", "SET_THRESHOLD"
 
     // ACTION 1: PUMP (Control Buzzer/Pump)
     if (strcmp(action, "PUMP") == 0) {
+      
       bool val = doc["enable"]; 
       pumpStatus = val;
       Serial.print("Command: Pump Manual set to ");
       Serial.println(val ? "ON" : "OFF");
     
+      //create a ack msg for broadcasted 
       JsonDocument ackDoc;
       ackDoc["state"] = "PUMP";   
       ackDoc["enable"] = pumpStatus;
@@ -154,7 +179,6 @@ void callback(char* topic, byte* message, unsigned int length) {
       char ackBuffer[256];
       serializeJson(ackDoc, ackBuffer);
     
-      String dataTopic = "devices/" + String(deviceID) + "/data";
       mqttClient.publish(dataTopic.c_str(), ackBuffer);
 
       Serial.print("Sent pump ACK: ");
@@ -177,30 +201,55 @@ void callback(char* topic, byte* message, unsigned int length) {
 
       // sent back ack
     
-      String dataTopic = "devices/" + String(deviceID) + "/data";
       mqttClient.publish(dataTopic.c_str(), ackBuffer);
       
       Serial.print("Sent auto mode ACK: ");
       Serial.println(ackBuffer);
     }
+    
     // ACTION 3: SET THRESHOLD
     else if (strcmp(action, "SetThreshold") == 0) {
-      // The "value" here is a nested object (SensorData)
+     // JSON mẫu:
+      // {"action":"SetThreshold", "value": {
+      //    "temperature": {"lower":18, "upper":30},
+      //    "humidity": {"lower":60, "upper":85},
+      //    "moisture": {"lower":60, "upper":80}
+      // }}
+      
       JsonObject values = doc["value"];
       
-      if (values.containsKey("temperature")) {
-        TemperatureLimit = values["temperature"];
-        Serial.print("Updated Temp Limit: "); Serial.println(TemperatureLimit);
+     if (values.containsKey("temperature")) {
+        TemperatureUnder = values["temperature"]["lower"];
+        TemperatureOver  = values["temperature"]["upper"];
+        
+        Serial.print("Updated Temp: Under="); 
+        Serial.print(TemperatureUnder);
+        Serial.print(" Over=");
+        Serial.println(TemperatureOver);
       }
+
       if (values.containsKey("humidity")) {
-        AirHumidityLimit = values["humidity"];
-        Serial.print("Updated Hum Limit: "); Serial.println(AirHumidityLimit);
+        AirHumidityUnder = values["humidity"]["lower"];
+        AirHumidityOver  = values["humidity"]["upper"];
+
+        Serial.print("Updated Hum: Under="); 
+        Serial.print(AirHumidityUnder);
+        Serial.print(" Over=");
+        Serial.println(AirHumidityOver);
       }
+
       if (values.containsKey("moisture")) {
-        SoilMoistureLimit = values["moisture"];
-        Serial.print("Updated Soil Limit: "); Serial.println(SoilMoistureLimit);
+        SoilMoistureUnder = values["moisture"]["lower"];
+        SoilMoistureOver  = values["moisture"]["upper"];
+
+        Serial.print("Updated Soil: Under="); 
+        Serial.print(SoilMoistureUnder);
+        Serial.print(" Over=");
+        Serial.println(SoilMoistureOver);
       }
     }
+    
+    //GET_DATA IS THE COMMAND TOPIC FOR TELEGRAM REQUEST DATA
     else if(strcmp(action,"GET_DATA") == 0){
       Serial.println("Command: GET_DATA");
 
@@ -209,13 +258,15 @@ void callback(char* topic, byte* message, unsigned int length) {
       int raw_soil = analogRead(SOIL_PIN);
       int soil_percent = map(raw_soil, 0, 4095, 0, 100); 
 
+
+      String topic = "devices/" + String(deviceID) + "/data_for_telegram";
+      //---------Payload----------------//
       String jsonPayload = "{\"sensorData\": {";
       jsonPayload += "\"temperature\": " + String(temperature, 2) + ", ";
       jsonPayload += "\"humidity\": " + String(humidity, 2) + ", ";
       jsonPayload += "\"moisture\": " + String(soil_percent);
       jsonPayload += "}}";
-
-      String topic = "devices/" + String(deviceID) + "/data_for_telegram";
+      //---------Payload----------------//
 
       mqttClient.publish(topic.c_str(), jsonPayload.c_str());
 
@@ -223,35 +274,33 @@ void callback(char* topic, byte* message, unsigned int length) {
       Serial.println(jsonPayload);
     }
   }
-  // else if (String(topic) == commandTopicForecast) {
-  //     String message = "";
-  //     for (int i = 0; i < length; i++) {
-  //         message += (char)message[i];
-  //     }
-  //     JsonDocument doc; 
-  //     DeserializationError error = deserializeJson(doc, message);
+   else if (String(topic) == forecastTopic) {
+     
+       JsonDocument doc; 
+       DeserializationError error = deserializeJson(doc, message,length);
 
-  //   if (error) {
-  //     Serial.print("deserializeJson() failed: ");
-  //     Serial.println(error.c_str());
-  //     return;
-  //   }
-  //     int rainValue = doc["rain_prob"];
-  //     lcd.clear();              
-  //     lcd.setCursor(6,1);      
-  //     lcd.print("RAIN : ");     
-  //     lcd.print(rainValue);     
-  //     lcd.print("%");
-  // }
+     if (error) {
+       Serial.print("deserializeJson() failed: ");
+       Serial.println(error.c_str());
+       return;
+     }
+
+       rainProb = doc["rain_prob"];
+       rainProb = doc["rain_prob"];
+       Serial.print("Updated Rain Probability: ");
+       Serial.println(rainProb);
+   }
 }
 
 void setup() {
+
   Serial.begin(9600);
   dht.begin();
 
   pinMode(RED_LED, OUTPUT);
-  pinMode(GREEN_LED, OUTPUT);
+  //pinMode(GREEN_LED, OUTPUT);
   
+  //setup buzzer 
   ledcSetup(0, 2000, 8);
   ledcAttachPin(BUZZER_PIN, 0); 
 
@@ -262,9 +311,9 @@ void setup() {
   Serial.print("Connecting to WiFi");
 
   wifiConnect();
-  wifiClient.setInsecure(); 
+  wifiClient.setInsecure(); //ko cần ssl cert
   mqttClient.setServer(mqttServer, port);
-  mqttClient.setCallback(callback);
+  mqttClient.setCallback(callback); // mỗi khi nhận đc tin nhắn, thì sử dụng hàm callback để xử lí msg
   mqttClient.setKeepAlive(90);
 }
 
@@ -310,23 +359,24 @@ void loop() {
     jsonPayload += "\"moisture\": " + String(soil_percent);
     jsonPayload += "}}";
 
-    String topic = "devices/" + String(deviceID) + "/data";
+   
 
     // Debug print
-    Serial.print("Publishing to " + topic + ": ");
+    Serial.print("Publishing to " + dataTopic + ": ");
     Serial.println(jsonPayload);
     
-    mqttClient.publish(topic.c_str(), jsonPayload.c_str());
+    mqttClient.publish(dataTopic.c_str(), jsonPayload.c_str());
 
   
     if (autoMode) {
-      bool warning = (temperature > TemperatureLimit || humidity > AirHumidityLimit || soil_percent > SoilMoistureLimit);
-      
-      // Control LEDs based on limits
+      bool warning = (temperature > TemperatureOver || temperature < TemperatureUnder) || 
+               (humidity > AirHumidityOver || humidity < AirHumidityUnder) || 
+               (soil_percent > SoilMoistureOver || soil_percent < SoilMoistureUnder);      
+
       digitalWrite(RED_LED, warning ? HIGH : LOW);
-      digitalWrite(GREEN_LED, warning ? LOW : HIGH);
-    
+
     }
+
     // LCD Display
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -334,6 +384,10 @@ void loop() {
     lcd.print(" H:"); lcd.print(humidity, 0);
     lcd.print(" S:"); lcd.print(soil_percent);
     lcd.setCursor(0,1);
-    lcd.print(" Mode:"); lcd.print(autoMode ? "Auto" : "Manual");
+    lcd.print(" M:"); lcd.print(autoMode ? "A" : "M");
+
+    lcd.print(" Rain:"); 
+    lcd.print(rainProb);
+    lcd.print("%");
   }
 }
