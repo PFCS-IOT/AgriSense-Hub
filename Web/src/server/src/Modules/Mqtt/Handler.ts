@@ -502,6 +502,9 @@ export const checkAndNotify = async (sensorData: SensorData) => {
 				}
 			}
 		}
+
+		// Update current warnings
+		PlantManager.currentWarnings = warnings
 	} catch (error) {
 		console.error(
 			chalk.red(
