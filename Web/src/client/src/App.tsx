@@ -10,7 +10,6 @@ import NotificationList from 'Client/Components/NotificationList.js'
 
 import LoginContainer from 'Client/Containers/Login/index.js'
 import SignupContainer from 'Client/Containers/Signup/index.js'
-import ForgotPasswordContainer from 'Client/Containers/ForgotPassword/index.js'
 import DashboardContainer from 'Client/Containers/Dashboard/index.js'
 
 const AppContent: React.FC = () => {
@@ -28,10 +27,6 @@ const AppContent: React.FC = () => {
 			<Routes>
 				<Route path="/login" element={<LoginContainer />} />
 				<Route path="/signup" element={<SignupContainer />} />
-				<Route
-					path="/forgot-password"
-					element={<ForgotPasswordContainer />}
-				/>
 
 				{/* Protected Routes */}
 				<Route element={<ProtectedRoute />}>
