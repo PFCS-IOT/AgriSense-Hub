@@ -25,25 +25,3 @@ export type SignupRequest = {
 	username: string
 	password: string
 }
-
-/**
- * Forgot Password Request Type
- *
- * @type ForgotPasswordRequest
- * @property {string} email - The user's email
- */
-export type ForgotPasswordRequest = {
-	email: string
-}
-
-/**
- * Reset Password Request Type
- *
- * @type ResetPasswordRequest
- * @property {string} token - The password reset token
- * @property {string} newPassword - The new password
- */
-export type ResetPasswordRequest = {
-	token: string
-	newPassword: string
-}

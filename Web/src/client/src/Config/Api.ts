@@ -4,12 +4,7 @@ import axios, {
 	type InternalAxiosRequestConfig,
 } from 'axios'
 
-import type {
-	LoginRequest,
-	SignupRequest,
-	ForgotPasswordRequest,
-	ResetPasswordRequest,
-} from 'Shared/Data/Types/index.js'
+import type { LoginRequest, SignupRequest } from 'Shared/Data/Types/index.js'
 import type {
 	ApiResponse,
 	LoginResponse,
@@ -86,43 +81,8 @@ export const Auth = {
 	 */
 	signup: (
 		requestBody: SignupRequest
-	): Promise<{ body: LoginResponse } & any> =>
+	): Promise<{ body: ApiResponse } & any> =>
 		api.post('/auth/signup', requestBody),
-
-	/**
-	 * Initiates the forgot password process for a user.
-	 *
-	 * @param requestBody - The forgot password request body containing user identifier.
-	 * @returns A promise resolving to the forgot password response.
-	 */
-	forgotPassword: (
-		requestBody: ForgotPasswordRequest
-	): Promise<{ body: ApiResponse } & any> =>
-		api.post('/auth/forgot', requestBody),
-
-	/**
-	 * Resets the user's password using the provided token and new password.
-	 *
-	 * @param requestBody - The reset password request body containing token and new password.
-	 * @returns A promise resolving to the reset password response.
-	 */
-	resetPassword: (
-		requestBody: ResetPasswordRequest
-	): Promise<{ body: ApiResponse } & any> =>
-		api.post('/auth/reset', requestBody),
-
-	/**
-	 * Resets the user's password using the provided token in the URL and new password.
-	 *
-	 * @param requestBody - The reset password request body containing the new password.
-	 * @param token - The reset token from the URL.
-	 * @returns A promise resolving to the reset password response.
-	 */
-	resetPasswordWithToken: (
-		requestBody: ResetPasswordRequest,
-		token: string
-	): Promise<{ body: ApiResponse } & any> =>
-		api.post(`/auth/reset/${token}`, requestBody),
 }
 
 export default api
