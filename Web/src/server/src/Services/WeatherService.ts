@@ -113,7 +113,7 @@ const WeatherService = {
 			return WeatherService.lastestWeatherForcast
 		} catch (err: any) {
 			console.error(`${chalk.red('✗ Weather API Fetch Error:')}`, err)
-			throw new Error(err.message || 'Failed to fetch weather data')
+			throw new Error('Failed to fetch weather data')
 		}
 	},
 }
