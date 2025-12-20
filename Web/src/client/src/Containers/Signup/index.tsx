@@ -48,10 +48,10 @@ const SignupContainer: React.FC = () => {
 			if (responseData.success) {
 				notify(
 					'success',
-					'Registration successful! Redirecting to dashboard...',
+					'Registration successful! Please login to use the website.',
 					5
 				)
-				login(responseData)
+				navigate('/login', { replace: true })
 			} else if (responseData.error) {
 				throw new Error(responseData.error)
 			}
